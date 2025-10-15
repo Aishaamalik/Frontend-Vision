@@ -1,27 +1,61 @@
 import streamlit as st
-import os
-from dotenv import load_dotenv
-from langchain_groq import ChatGroq
+import base64
 from PIL import Image
-import pytesseract
-pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
+from backend import extract_text_from_image, generate_code_from_text
 
-# Load environment variables
-load_dotenv()
-
-# Get API key
-GROQ_API_KEY = os.getenv('GROQ_API_KEY')
-if not GROQ_API_KEY:
-    st.error("GROQ_API_KEY not found in .env file. Please set it.")
-    st.stop()
-
-# Initialize the LLM
-llm = ChatGroq(
-    api_key=GROQ_API_KEY,
-    model="llama-3.1-8b-instant",
-    temperature=0.7,
-    max_tokens=1000
+# Set page config with dark theme to match background
+st.set_page_config(
+    page_title="Frontend Vision",
+    page_icon="🎨",
+    layout="wide",
+    initial_sidebar_state="collapsed"
 )
+
+def set_bg_with_overlay(img_path, overlay_rgba="rgba(0,0,0,0)"):
+    with open(img_path, "rb") as f:
+        b64 = base64.b64encode(f.read()).decode()
+    st.markdown(
+        f"""
+        <style>
+        .stApp {{
+            background-image: linear-gradient({overlay_rgba}, {overlay_rgba}), url("data:image/png;base64,{b64}");
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+        }}
+        .stApp .css-1d391kg {{ /* container text background tweak (class may vary) */
+            background: rgba(255,255,255,0.0);
+        }}
+        /* Dark theme colors to match background */
+        .stTextInput, .stTextArea, .stSelectbox {{
+            background-color: rgba(255,255,255,0.1) !important;
+            color: white !important;
+            border: 1px solid rgba(255,255,255,0.3) !important;
+        }}
+        .stButton>button {{
+            background-color: rgba(255,255,255,0.2) !important;
+            color: white !important;
+            border: 1px solid rgba(255,255,255,0.5) !important;
+        }}
+        .stButton>button:hover {{
+            background-color: rgba(255,255,255,0.3) !important;
+        }}
+        .stMarkdown, .stText {{
+            color: white !important;
+        }}
+        .stSubheader {{
+            color: #ffffff !important;
+        }}
+        .stCodeBlock {{
+            background-color: rgba(0,0,0,0.5) !important;
+            border: 1px solid rgba(255,255,255,0.2) !important;
+        }}
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
+
+set_bg_with_overlay("pic1.jpg", overlay_rgba="rgba(0,0,0,0.6)")
 
 st.title("Frontend Vision")
 st.write("Upload an image of a web app frontend, and I'll analyze it to generate code!")
@@ -37,38 +71,14 @@ if uploaded_file is not None:
         with st.spinner("Analyzing image and generating code..."):
             try:
                 # Extract text from image using OCR
-                extracted_text = pytesseract.image_to_string(image)
+                extracted_text = extract_text_from_image(image)
                 st.subheader("Extracted Text from Image")
                 st.text(extracted_text)
 
-                # Use LLM to analyze the extracted text and generate code
-                prompt = f"""Based on this extracted text from a web frontend image: '{extracted_text}'.
-
-Please analyze what you see and generate a complete, functional web page. Structure your response as follows:
-
-## Analysis
-Brief description of the frontend based on the extracted text.
-
-## HTML Code
-```html
-<!-- Complete HTML code here -->
-```
-
-## CSS Code
-```css
-/* Complete CSS code here */
-```
-
-## JavaScript Code
-```javascript
-// Complete JavaScript code here
-```
-
-Make sure the code is well-structured, uses modern best practices, and creates a functional web page."""
-                response = llm.invoke(prompt)
+                # Generate code using backend function
+                content = generate_code_from_text(extracted_text)
 
                 # Parse and display the response in organized sections
-                content = response.content
                 st.subheader("Generated Frontend Code")
 
                 # Split by sections
