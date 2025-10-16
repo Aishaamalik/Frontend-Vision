@@ -64,12 +64,10 @@ st.title("Frontend Vision")
 st.write("Upload an image of a web app frontend, and I'll analyze it to generate code!")
 
 # User customization options
-col1, col2, col3 = st.columns(3)
+col1, col2 = st.columns(2)
 with col1:
     framework = st.selectbox("Framework", ["html", "react"], index=0)
 with col2:
-    theme = st.selectbox("Theme", ["light", "dark"], index=0)
-with col3:
     style = st.selectbox("Style", ["minimal", "modern", "material"], index=0)
 
 hint = st.text_input("Optional hint (e.g., 'This is a feedback form')", "")
@@ -90,7 +88,7 @@ if uploaded_file is not None:
                 st.text(extracted_text)
 
                 # Generate code using backend function with options
-                content = generate_code_from_text(extracted_text, framework, theme, style, hint)
+                content = generate_code_from_text(extracted_text, framework, 'light', style, hint)
 
                 # Parse and display the response in organized sections
                 st.subheader("Generated Frontend Code")
@@ -169,14 +167,6 @@ if uploaded_file is not None:
                             zip_file.writestr('script.js', js_code)
                     zip_buffer.seek(0)
                     st.download_button("Download Code as ZIP", data=zip_buffer, file_name="frontend_code.zip")
-
-                # Rating system
-                st.subheader("Rate the Generated Code")
-                rating = st.slider("Layout accuracy / Style match / Code correctness (1-10)", 1, 10, 8)
-                feedback = st.text_area("Your feedback", "")
-                if st.button("Submit Rating"):
-                    # Here you could log to a file or database
-                    st.success("Thank you for your feedback!")
 
             except Exception as e:
                 st.error(f"Error: {str(e)}")
