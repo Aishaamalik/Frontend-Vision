@@ -60,13 +60,22 @@ def clean_code(code, language):
         code = code.strip()
     return code
 
-def generate_code_from_text(extracted_text, framework='html', theme='light', style='minimal', hint=''):
-    """Generate frontend code based on extracted text with enhancements."""
+def generate_code_from_text(extracted_text, hint=''):
+    """Generate frontend code based on extracted text with automatic framework and style detection."""
+    framework = 'html'  # default for prompt, will be overridden by LLM detection
     base_prompt = f"""Based on this extracted text from a web frontend image: '{extracted_text}'.
 
 Additional context: {hint}
 
-Please analyze what you see and generate a complete, functional web page in {framework.upper()} format. Structure your response as follows:
+Please analyze the extracted text to determine the most appropriate frontend framework and style for the web page. Supported frameworks: HTML, React, Vue, Angular, Svelte. Supported styles: minimal, modern, material, bootstrap, tailwind.
+
+First, detect the framework and style, then generate a complete, functional web page accordingly. Structure your response as follows:
+
+## Detected Framework
+State the detected framework (e.g., HTML, React, etc.)
+
+## Detected Style
+State the detected style (e.g., minimal, modern, etc.)
 
 ## Detected Components
 List the UI components detected (e.g., - 4 Input Fields, - 1 Button, etc.)
@@ -74,14 +83,14 @@ List the UI components detected (e.g., - 4 Input Fields, - 1 Button, etc.)
 ## Analysis
 Brief description of the frontend based on the extracted text, including layout understanding.
 
-## {framework.upper()} Code
-```{'html' if framework == 'html' else 'jsx'}
-<!-- Complete {framework.upper()} code here -->
+## Code
+```{'html' if framework == 'html' else 'jsx' if framework == 'react' else 'vue' if framework == 'vue' else 'ts' if framework == 'angular' else 'svelte'}
+<!-- Complete code here -->
 ```
 
 ## CSS Code
 ```css
-/* Complete CSS code here, using {theme} theme and {style} style */
+/* Complete CSS code here, using detected style */
 ```
 
 ## JavaScript Code
@@ -92,14 +101,25 @@ Brief description of the frontend based on the extracted text, including layout 
 Enhancements:
 - Optimize for better alignment, spacing, and responsiveness. Match proportions from the image.
 - Make the code responsive using flexbox or grid, with max-width and @media queries for mobile and desktop.
-- Use modern best practices, rounded corners, soft shadows for {style} style.
-- Ensure functional web page."""
-
-    if framework == 'react':
-        base_prompt += "\nGenerate a React functional component with appropriate props, state, and use TailwindCSS for styling."
+- Use modern best practices, rounded corners, soft shadows for the detected style.
+- Ensure functional web page.
+- For React, generate a functional component with hooks.
+- For Vue, use Vue 3 composition API.
+- For Angular, use TypeScript.
+- For Svelte, use modern Svelte syntax."""
 
     response = llm.invoke(base_prompt)
     content = response.content
+
+    # Extract detected framework and style from content
+    detected_framework = 'html'  # default
+    detected_style = 'minimal'  # default
+    lines = content.split('\n')
+    for i, line in enumerate(lines):
+        if line.strip().startswith('## Detected Framework'):
+            detected_framework = lines[i+1].strip().lower() if i+1 < len(lines) else 'html'
+        elif line.strip().startswith('## Detected Style'):
+            detected_style = lines[i+1].strip().lower() if i+1 < len(lines) else 'minimal'
 
     # Post-process: Clean the code sections
     sections = content.split('## ')
@@ -110,10 +130,10 @@ Enhancements:
             code_end = section.find('```', code_start + 3)
             if code_end != -1:
                 code_block = section[code_start:code_end + 3]
-                lang = 'html' if 'HTML' in section else ('css' if 'CSS' in section else 'javascript')
+                lang = 'html' if 'HTML' in section or detected_framework == 'html' else ('javascript' if detected_framework in ['react', 'vue', 'svelte'] else 'typescript' if detected_framework == 'angular' else 'html')
                 cleaned_code = clean_code(code_block[3:-3], lang)  # Remove ``` and clean
                 section = section[:code_start] + f"```{lang}\n{cleaned_code}\n```" + section[code_end + 3:]
         cleaned_sections.append(section)
     content = '## '.join(cleaned_sections)
 
-    return content
+    return content, detected_framework, detected_style

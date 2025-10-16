@@ -15,3 +15,9 @@
 - [x] Add download as ZIP option in app.py
 - [x] Add evaluation/rating system in app.py (slider and text area)
 - [x] Test all new features locally
+
+# New Tasks: Automatic Framework and Style Detection
+
+- [x] Update backend.py: Modify generate_code_from_text to detect framework and style from extracted text, return detected values along with content
+- [x] Update app.py: Remove selectbox columns for framework and style, display detected values after analysis
+- [ ] Test automatic detection with various image types
